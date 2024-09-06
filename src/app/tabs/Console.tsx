@@ -27,7 +27,7 @@ export function Console() {
   );
 
   return (
-    <div className="flex flex-col-reverse grow overflow-y-auto max-h-dvh">
+    <div className="flex flex-col-reverse grow overflow-y-auto max-h-dvh font-mono">
       <div className="flex flex-col">{consoles}</div>
     </div>
   );

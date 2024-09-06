@@ -5,13 +5,7 @@ import { editor } from "monaco-editor";
 import * as ts from "typescript";
 import * as cccLib from "@ckb-ccc/core";
 import { ccc } from "@ckb-ccc/connector-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  ReactNode,
-} from "react";
+import { useEffect, useRef, useState, useCallback, ReactNode } from "react";
 import { vlqDecode } from "./vlq";
 import { useApp } from "./context";
 import {
@@ -107,14 +101,20 @@ async function execute(
           if (!match) {
             return;
           }
-          await onUpdate(
-            findSourcePos(
-              compiled.sourceMapText,
-              Number(match[1]) - 4,
-              Number(match[2]) - 2
-            ),
-            tx
-          );
+          try {
+            await onUpdate(
+              findSourcePos(
+                compiled.sourceMapText,
+                Number(match[1]) - 4,
+                Number(match[2]) - 2
+              ),
+              tx
+            );
+          } catch (err) {
+            if (err !== "ABORTED") {
+              throw err;
+            }
+          }
         },
         signer,
       },
