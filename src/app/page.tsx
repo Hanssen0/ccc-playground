@@ -7,7 +7,6 @@ import * as cccLib from "@ckb-ccc/core";
 import { ccc } from "@ckb-ccc/connector-react";
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   useCallback,
@@ -20,19 +19,22 @@ import {
   BookOpenText,
   Bug,
   Coins,
-  Info,
+  FlaskConical,
+  FlaskConicalOff,
   Play,
   Printer,
   Send,
+  SquareArrowOutUpRight,
   SquareTerminal,
   StepForward,
-  X,
 } from "lucide-react";
 import { Button } from "./components/Button";
 import { Transaction } from "./tabs/Transaction";
 import { Scripts } from "./tabs/Scripts";
 import { DEFAULT_TRANSFER, DEFAULT_UDT_TRANSFER } from "./examples";
 import html2canvas from "html2canvas";
+import { About } from "./tabs/About";
+import { Console } from "./tabs/Console";
 
 const CCCCoreSource = require.context(
   "!!raw-loader!../../node_modules/@ckb-ccc/core",
@@ -167,6 +169,7 @@ async function execute(
 
 export default function Home() {
   const { openSigner, openAction, signer, messages, sendMessage } = useApp();
+  const { setClient } = ccc.useCcc();
 
   const [editor, setEditor] = useState<
     editor.IStandaloneCodeEditor | undefined
@@ -188,6 +191,8 @@ export default function Home() {
   const tabRef = useRef<HTMLDivElement | null>(null);
 
   const [tab, setTab] = useState("Transaction");
+  const [isTestnet, setIsTestnet] = useState(true);
+  const [readMsgCount, setReadMsgCount] = useState(0);
 
   const highlight = useCallback(
     (pos: number[] | undefined) => {
@@ -280,6 +285,7 @@ export default function Home() {
   );
 
   useEffect(() => {
+    setScripts(new Map());
     [tx.inputs.map((i) => i.cellOutput), tx.outputs]
       .flat()
       .map((o) => {
@@ -340,26 +346,22 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 
-  const consoles = useMemo(
-    () =>
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      messages.map(([level, _, message], i) => (
-        <div
-          key={i}
-          className={`border-t border-fuchsia-800 p-2 break-all ${
-            level === "error" ? "text-red-300 bg-red-600/25" : "text-stone-300"
-          }`}
-        >
-          {level === "error" ? (
-            <X className="inline mr-2" size="16" />
-          ) : (
-            <Info className="inline mr-2" size="16" />
-          )}
-          {message}
-        </div>
-      )),
-    [messages]
-  );
+  useEffect(() => {
+    setClient(
+      isTestnet ? new ccc.ClientPublicTestnet() : new ccc.ClientPublicMainnet()
+    );
+  }, [isTestnet, setClient]);
+
+  useEffect(() => {
+    if (tab === "Console") {
+      setReadMsgCount(messages.length);
+      return;
+    }
+
+    if (messages.slice(readMsgCount).some(([level]) => level === "error")) {
+      setTab("Console");
+    }
+  }, [messages, tab, readMsgCount]);
 
   return (
     <div
@@ -368,7 +370,7 @@ export default function Home() {
       }`}
     >
       <div
-        className={`basis-1/2 flex flex-col overflow-hidden lg:h-dvh ${
+        className={`basis-1/2 shrink-0 flex flex-col overflow-hidden lg:h-dvh ${
           tab !== "Print" ? "" : "hidden"
         }`}
       >
@@ -417,6 +419,14 @@ export default function Home() {
           }}
         />
         <div className="flex overflow-x-auto bg-gray-800 shrink-0">
+          <Button onClick={() => setIsTestnet(!isTestnet)}>
+            {isTestnet ? (
+              <FlaskConical size="16" />
+            ) : (
+              <FlaskConicalOff size="16" />
+            )}
+            <span className="ml-1">{isTestnet ? "Testnet" : "Mainnet"}</span>
+          </Button>
           {isRunning ? (
             <Button onClick={() => next?.()} disabled={!next}>
               <StepForward size="16" />
@@ -444,14 +454,12 @@ export default function Home() {
           </Button>
         </div>
       </div>
-      <div className="flex flex-col basis-1/2 grow">
+      <div className="flex flex-col basis-1/2 grow shrink-0 overflow-hidden">
         {
           {
             Transaction: <Transaction tx={tx} scripts={scripts} />,
             Scripts: <Scripts scripts={scripts} />,
-            Console: (
-              <div className="flex flex-col grow justify-end">{consoles}</div>
-            ),
+            Console: <Console />,
             Print: (
               <Transaction
                 tx={tx}
@@ -460,6 +468,7 @@ export default function Home() {
                 innerRef={tabRef}
               />
             ),
+            About: <About className="p-4 grow" />,
           }[tab]
         }
         <div className="flex overflow-x-auto bg-gray-800 shrink-0">
@@ -497,6 +506,10 @@ export default function Home() {
             <span className="ml-1">
               Print{tab === "Print" ? " (Click again)" : ""}
             </span>
+          </Button>
+          <Button onClick={() => setTab("About")}>
+            <SquareArrowOutUpRight size="16" />
+            <span className="ml-1">About</span>
           </Button>
         </div>
       </div>
