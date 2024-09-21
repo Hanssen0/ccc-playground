@@ -3,7 +3,7 @@
 import Editor from "@monaco-editor/react";
 import { editor } from "monaco-editor";
 import * as ts from "typescript";
-import * as cccLib from "@ckb-ccc/core";
+import * as cccLib from "@ckb-ccc/ccc";
 import { ccc } from "@ckb-ccc/connector-react";
 import { useEffect, useRef, useState, useCallback, ReactNode } from "react";
 import { vlqDecode } from "./vlq";
@@ -30,10 +30,10 @@ import html2canvas from "html2canvas";
 import { About } from "./tabs/About";
 import { Console } from "./tabs/Console";
 
-const CCCCoreSource = require.context(
-  "!!raw-loader!../../node_modules/@ckb-ccc/core",
+const CCCSource = require.context(
+  "!!raw-loader!../../node_modules/.pnpm/",
   true,
-  /(\.d.ts$|package.json)/
+  /@ckb-ccc\+ccc@.*\/node_modules\/.*(\.d\.ts$|package.json)/
 );
 
 function findSourcePos(
@@ -75,7 +75,7 @@ async function execute(
     pos: [number, number, number, number] | undefined,
     tx: ccc.Transaction | undefined
   ) => Promise<void>,
-  signer: ccc.Signer | undefined,
+  signer: ccc.Signer,
   log: (level: "error" | "info", title: string, msgs: ReactNode[]) => void
 ) {
   const compiled = ts.transpileModule(source, {
@@ -86,6 +86,7 @@ async function execute(
   const require = (path: string) => {
     const lib = {
       "@ckb-ccc/core": cccLib,
+      "@ckb-ccc/ccc": cccLib,
       "@ckb-ccc/playground": {
         render: async (tx: ccc.Transaction | unknown) => {
           if (!(tx instanceof ccc.Transaction)) {
@@ -117,6 +118,7 @@ async function execute(
           }
         },
         signer,
+        client: signer.client,
       },
     }[path];
 
@@ -391,8 +393,8 @@ export default function Home() {
             monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
               ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
               module: monaco.languages.typescript.ModuleKind.ESNext,
-              moduleResolution:
-                monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              moduleResolution: 99 as any, // NodeNext
               noImplicitAny: true,
               strictNullChecks: true,
             });
@@ -406,14 +408,15 @@ export default function Home() {
               }
             );
 
-            CCCCoreSource.keys().forEach((key: string) => {
+            CCCSource.keys().forEach((key: string) => {
+              console.log(key.replace(/\.\/[^\/]*\//, ""));
               monaco.languages.typescript.typescriptDefaults.addExtraLib(
-                CCCCoreSource(key).default,
-                "file:///node_modules/@ckb-ccc/core/" + key.slice(2)
+                CCCSource(key).default,
+                "file:///" + key.replace(/\.\/[^\/]*\//, "")
               );
             });
             monaco.languages.typescript.typescriptDefaults.addExtraLib(
-              "import { ccc } from '@ckb-ccc/core'; export function render(tx: ccc.Transaction): Promise<void>; export const signer: ccc.Signer;",
+              "import { ccc } from '@ckb-ccc/core'; export function render(tx: ccc.Transaction): Promise<void>; export const signer: ccc.Signer; export const client: ccc.Client;",
               "file:///node_modules/@ckb-ccc/playground/index.d.ts"
             );
           }}
