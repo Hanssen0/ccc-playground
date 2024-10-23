@@ -9,9 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ckb-ccc/ccc": "0.0.16-alpha.0",
-    "@ckb-ccc/connector-react": "0.0.17-alpha.0",
+    "@ckb-ccc/ccc": "0.0.16-alpha.5",
+    "@ckb-ccc/connector-react": "0.0.17-alpha.7",
     "@monaco-editor/react": "^4.6.0",
+    "axios": "^1.7.7",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.438.0",
     "monaco-editor": "^0.51.0",

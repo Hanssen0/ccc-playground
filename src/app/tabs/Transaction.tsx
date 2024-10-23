@@ -1,16 +1,19 @@
 import { ccc } from "@ckb-ccc/connector-react";
 import { MutableRefObject, useEffect, useMemo, useState } from "react";
 import { Cell } from "../components/Cell";
+import { Play } from "lucide-react";
 
 export function Transaction({
   tx,
   scripts,
   disableScroll,
+  onRun,
   innerRef,
 }: {
-  tx: ccc.Transaction;
+  tx?: ccc.Transaction;
   scripts: Map<string, { color: string; script: ccc.Script }>;
   disableScroll?: boolean;
+  onRun?: () => void;
   innerRef?: MutableRefObject<HTMLDivElement | null>;
 }) {
   const { client } = ccc.useCcc();
@@ -18,22 +21,25 @@ export function Transaction({
   const [inputAmount, setInputAmount] = useState(ccc.Zero);
   useEffect(() => {
     (async () => {
-      const inputAmount = await tx.getInputsCapacity(client);
-      setInputAmount(inputAmount);
+      const inputAmount = await tx?.getInputsCapacity(client);
+      setInputAmount(inputAmount ?? ccc.Zero);
     })();
   }, [tx, client]);
-  const outputAmount = useMemo(() => tx.getOutputsCapacity(), [tx]);
+  const outputAmount = useMemo(
+    () => tx?.getOutputsCapacity() ?? ccc.Zero,
+    [tx]
+  );
 
   const inputs = useMemo(
     () =>
-      tx.inputs.map((input, i) => (
+      tx?.inputs.map((input, i) => (
         <Cell cell={input} scripts={scripts} key={i} />
       )),
     [tx, scripts]
   );
   const outputs = useMemo(
     () =>
-      tx.outputs.map((cellOutput, i) => (
+      tx?.outputs.map((cellOutput, i) => (
         <Cell
           cell={{ cellOutput, outputData: tx.outputsData[i] }}
           scripts={scripts}
@@ -42,6 +48,20 @@ export function Transaction({
       )),
     [tx, scripts]
   );
+
+  if (!tx) {
+    return (
+      <div
+        ref={innerRef}
+        className="flex flex-col grow justify-center items-center"
+      >
+        <button className="p-6 rounded-full bg-green-400 mb-4" onClick={onRun}>
+          <Play size="32" />
+        </button>
+        <p className="text-lg">Run code to generate transaction</p>
+      </div>
+    );
+  }
 
   return (
     <div

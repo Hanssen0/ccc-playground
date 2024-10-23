@@ -29,6 +29,7 @@ import { DEFAULT_TRANSFER, DEFAULT_UDT_TRANSFER } from "./examples";
 import html2canvas from "html2canvas";
 import { About } from "./tabs/About";
 import { Console } from "./tabs/Console";
+import axios from "axios";
 
 const CCCSource = require.context(
   "!!raw-loader!../../node_modules/.pnpm/",
@@ -189,7 +190,7 @@ export default function Home() {
   const [scripts, setScripts] = useState<
     Map<string, { script: ccc.Script; color: string }>
   >(new Map());
-  const [tx, setTx] = useState<ccc.Transaction>(() => ccc.Transaction.from({}));
+  const [tx, setTx] = useState<ccc.Transaction | undefined>(undefined);
   const tabRef = useRef<HTMLDivElement | null>(null);
 
   const [tab, setTab] = useState("Transaction");
@@ -288,7 +289,7 @@ export default function Home() {
 
   useEffect(() => {
     setScripts(new Map());
-    [tx.inputs.map((i) => i.cellOutput), tx.outputs]
+    [tx?.inputs.map((i) => i.cellOutput) ?? [], tx?.outputs ?? []]
       .flat()
       .map((o) => {
         if (!o) {
@@ -342,10 +343,13 @@ export default function Home() {
       return;
     }
 
-    if (!isRunning) {
-      runCode(true);
+    const searchParams = new URLSearchParams(window.location.search);
+    const src = searchParams.get("src");
+    if (src == null) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    axios.get(src).then(({ data }) => setSource(data));
   }, [editor]);
 
   useEffect(() => {
@@ -409,7 +413,6 @@ export default function Home() {
             );
 
             CCCSource.keys().forEach((key: string) => {
-              console.log(key.replace(/\.\/[^\/]*\//, ""));
               monaco.languages.typescript.typescriptDefaults.addExtraLib(
                 CCCSource(key).default,
                 "file:///" + key.replace(/\.\/[^\/]*\//, "")
@@ -460,7 +463,13 @@ export default function Home() {
       <div className="flex flex-col basis-1/2 grow shrink-0 overflow-hidden">
         {
           {
-            Transaction: <Transaction tx={tx} scripts={scripts} />,
+            Transaction: (
+              <Transaction
+                tx={tx}
+                scripts={scripts}
+                onRun={() => runCode(false)}
+              />
+            ),
             Scripts: <Scripts scripts={scripts} />,
             Console: <Console />,
             Print: (
