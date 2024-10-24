@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "CCC Playground",
   description: "Start exploring CKB from here!",
   icons: "/favicon.svg",
+  openGraph: {
+    title: "CCC Playground",
+    description: "Start exploring CKB from here!",
+    images: "/opengraph.png",
+  },
 };
 
 export default function RootLayout({
