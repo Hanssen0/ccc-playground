@@ -16,7 +16,7 @@ export function About(props: React.ComponentPropsWithoutRef<"div">) {
       <div className="flex flex-col gap-4 *:flex *:border-b *:gap-3 *:pt-3 *:pb-4 *:px-8 *:whitespace-nowrap">
         <Link href="https://ckbccc.com/" target="_blank">
           <img
-            src="https://raw.githubusercontent.com/ckb-ecofund/ccc/master/assets/logo.svg"
+            src="https://raw.githubusercontent.com/ckb-devrel/ccc/master/assets/logo.svg"
             alt="CCC"
             className="h-6 w-6"
           />
@@ -24,13 +24,13 @@ export function About(props: React.ComponentPropsWithoutRef<"div">) {
         </Link>
         <Link href="https://docs.ckbccc.com/" target="_blank">
           <img
-            src="https://raw.githubusercontent.com/ckb-ecofund/ccc/master/assets/logo.svg"
+            src="https://raw.githubusercontent.com/ckb-devrel/ccc/master/assets/logo.svg"
             alt="CCC"
             className="h-6 w-6"
           />
           CCC Docs
         </Link>
-        <Link href="https://github.com/ckb-ecofund/ccc" target="_blank">
+        <Link href="https://github.com/ckb-devrel/ccc" target="_blank">
           <svg
             className="h-6 w-6"
             xmlns="http://www.w3.org/2000/svg"
@@ -43,7 +43,7 @@ export function About(props: React.ComponentPropsWithoutRef<"div">) {
           GitHub: CCC
         </Link>
         <Link
-          href="https://github.com/ckb-ecofund/ccc-playground"
+          href="https://github.com/ckb-devrel/ccc-playground"
           target="_blank"
         >
           <svg

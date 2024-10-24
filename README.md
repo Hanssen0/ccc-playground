@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://live.ckbccc.com/">
-    <img alt="Logo" src="https://raw.githubusercontent.com/ckb-ecofund/ccc/master/assets/logo.svg" width="20%" />
+    <img alt="Logo" src="https://raw.githubusercontent.com/ckb-devrel/ccc/master/assets/logo.svg" width="20%" />
   </a>
 </p>
 
@@ -9,8 +9,8 @@
 </h1>
 
 <p align="center">
-  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/ckb-ecofund/ccc-playground" />
-  <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/ckb-ecofund/ccc-playground/master" />
+  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/ckb-devrel/ccc-playground" />
+  <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/ckb-devrel/ccc-playground/master" />
   <a href="https://live.ckbccc.com/"><img
     alt="Playground" src="https://img.shields.io/website?url=https%3A%2F%2Flive.ckbccc.com%2F&label=Playground"
   /></a>
@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://live.ckbccc.com/">
-    <img src="https://raw.githubusercontent.com/ckb-ecofund/ccc-playground/master/assets/preview.png" width="60%" />
+    <img src="https://raw.githubusercontent.com/ckb-devrel/ccc-playground/master/assets/preview.png" width="60%" />
   </a>
 </p>
 
@@ -46,7 +46,7 @@ This project is still under active development, and we are looking forward to yo
 
 ## Documents
 
-- Check [the repo of project CCC](https://github.com/ckb-ecofund/ccc) for detailed introduction.
+- Check [the repo of project CCC](https://github.com/ckb-devrel/ccc) for detailed introduction.
 - Check our [full documents for all detailed APIs](https://docs.ckbccc.com).
 
 ## Run Locally
