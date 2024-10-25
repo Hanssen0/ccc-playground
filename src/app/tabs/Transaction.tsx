@@ -5,13 +5,11 @@ import { Play } from "lucide-react";
 
 export function Transaction({
   tx,
-  scripts,
   disableScroll,
   onRun,
   innerRef,
 }: {
   tx?: ccc.Transaction;
-  scripts: Map<string, { color: string; script: ccc.Script }>;
   disableScroll?: boolean;
   onRun?: () => void;
   innerRef?: MutableRefObject<HTMLDivElement | null>;
@@ -31,22 +29,15 @@ export function Transaction({
   );
 
   const inputs = useMemo(
-    () =>
-      tx?.inputs.map((input, i) => (
-        <Cell cell={input} scripts={scripts} key={i} />
-      )),
-    [tx, scripts]
+    () => tx?.inputs.map((input, i) => <Cell cell={input} key={i} />),
+    [tx]
   );
   const outputs = useMemo(
     () =>
       tx?.outputs.map((cellOutput, i) => (
-        <Cell
-          cell={{ cellOutput, outputData: tx.outputsData[i] }}
-          scripts={scripts}
-          key={i}
-        />
+        <Cell cell={{ cellOutput, outputData: tx.outputsData[i] }} key={i} />
       )),
-    [tx, scripts]
+    [tx]
   );
 
   if (!tx) {

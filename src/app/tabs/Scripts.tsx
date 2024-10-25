@@ -1,23 +1,49 @@
 import { ccc } from "@ckb-ccc/connector-react";
-import { useMemo } from "react";
-import { useGetExplorerLink } from "../utils";
+import { useEffect, useMemo, useState } from "react";
+import { getScriptColor, useGetExplorerLink } from "../utils";
 
-export function Scripts({
-  scripts,
-}: {
-  scripts: Map<string, { color: string; script: ccc.Script }>;
-}) {
-  const { client }  = ccc.useCcc();
+export function Scripts({ tx }: { tx?: ccc.Transaction }) {
+  const { client } = ccc.useCcc();
   const { explorerAddress } = useGetExplorerLink();
+
+  const [scripts, setScripts] = useState<Map<string, ccc.Script>>(new Map());
+
+  useEffect(() => {
+    setScripts(new Map());
+    [tx?.inputs.map((i) => i.cellOutput) ?? [], tx?.outputs ?? []]
+      .flat()
+      .map((o) => {
+        if (!o) {
+          return;
+        }
+
+        return [o.lock, o.type];
+      })
+      .flat()
+      .map((script) => {
+        if (!script) {
+          return;
+        }
+
+        setScripts((scripts) => {
+          const hash = script.hash();
+          if (scripts.has(hash)) {
+            return scripts;
+          }
+
+          return new Map([...Array.from(scripts.entries()), [hash, script]]);
+        });
+      });
+  }, [tx]);
 
   const scriptsList = useMemo(
     () =>
-      Array.from(scripts.entries(), ([key, { script, color }]) => (
+      Array.from(scripts.entries(), ([key, script]) => (
         <div
           key={key}
           className="p-2 py-4 flex flex-col"
           style={{
-            backgroundColor: color,
+            backgroundColor: getScriptColor(script),
           }}
         >
           <div className="text-sm text-gray-300 -mb-1">address</div>
@@ -42,5 +68,9 @@ export function Scripts({
     [scripts, explorerAddress, client]
   );
 
-  return <div className="flex flex-col grow justify-start overflow-y-auto">{scriptsList}</div>;
+  return (
+    <div className="flex flex-col grow justify-start overflow-y-auto">
+      {scriptsList}
+    </div>
+  );
 }

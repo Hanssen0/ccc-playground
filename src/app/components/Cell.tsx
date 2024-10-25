@@ -1,5 +1,5 @@
 import { ccc } from "@ckb-ccc/connector-react";
-import { formatString, useGetExplorerLink } from "../utils";
+import { formatString, getScriptColor, useGetExplorerLink } from "../utils";
 import { useMemo } from "react";
 import { RandomWalk } from "./RandomWalk";
 
@@ -30,14 +30,12 @@ function Capacity({ capacity }: { capacity?: ccc.NumLike }) {
 
 export function Cell({
   cell: { cellOutput, previousOutput, outputData },
-  scripts,
 }: {
   cell: {
     cellOutput?: ccc.CellOutput;
     previousOutput?: ccc.OutPoint;
     outputData?: ccc.Hex;
   };
-  scripts: Map<string, { script: ccc.Script; color: string }>;
 }) {
   const { explorerTransaction } = useGetExplorerLink();
 
@@ -59,7 +57,7 @@ export function Cell({
       2
     );
   }, [cellOutput, outputData]);
-  
+
   const outputLength = useMemo(() => {
     if (!outputData) {
       return 0;
@@ -68,30 +66,33 @@ export function Cell({
     return ccc.bytesFrom(outputData).length;
   }, [outputData]);
 
+  const lockColor = useMemo(
+    () => (cellOutput ? getScriptColor(cellOutput.lock) : "#1f2937"),
+    [cellOutput]
+  );
+  const typeColor = useMemo(
+    () => (cellOutput?.type ? getScriptColor(cellOutput.type) : "#1f2937"),
+    [cellOutput]
+  );
+
   return (
     <RandomWalk
       className="relative w-40 h-40 border border-fuchsia-900 rounded-full shadow-md flex flex-col justify-center items-center"
       style={{
-        backgroundColor: cellOutput
-          ? scripts.get(cellOutput.lock.hash())?.color ?? "#fff"
-          : "#1f2937",
+        backgroundColor: lockColor,
       }}
     >
       <div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 h-28 w-28 rounded-full overflow-hidden"
         style={{
           borderWidth: "2rem",
-          borderColor: cellOutput?.type
-            ? scripts.get(cellOutput.type.hash())?.color ?? "#fff"
-            : "#1f2937",
+          borderColor: typeColor,
         }}
       >
         <div
           className="absolute bg-white left-1/2 -translate-x-1/2 h-20 w-20"
           style={{
-            backgroundColor: cellOutput?.lock
-              ? scripts.get(cellOutput.lock.hash())?.color ?? "#fff"
-              : "#1f2937",
+            backgroundColor: lockColor,
             top: `${freePercentage}%`,
           }}
         ></div>

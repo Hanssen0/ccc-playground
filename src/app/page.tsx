@@ -1,12 +1,7 @@
 "use client";
 
-import Editor from "@monaco-editor/react";
-import { editor } from "monaco-editor";
-import * as ts from "typescript";
-import * as cccLib from "@ckb-ccc/ccc";
 import { ccc } from "@ckb-ccc/connector-react";
-import { useEffect, useRef, useState, useCallback, ReactNode } from "react";
-import { vlqDecode } from "./vlq";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useApp } from "./context";
 import {
   Blocks,
@@ -30,221 +25,36 @@ import html2canvas from "html2canvas";
 import { About } from "./tabs/About";
 import { Console } from "./tabs/Console";
 import axios from "axios";
-
-const CCCSource = require.context(
-  "!!raw-loader!../../node_modules/.pnpm/",
-  true,
-  /@ckb-ccc\+ccc@.*\/node_modules\/.*(\.d\.ts$|package.json)/
-);
-
-function findSourcePos(
-  sourceMap: string | undefined,
-  row: number,
-  col: number
-): [number, number, number, number] | undefined {
-  if (!sourceMap) {
-    return;
-  }
-  const lines = JSON.parse(sourceMap).mappings.split(";") as string[];
-
-  let sRow = 0;
-  let sCol = 0;
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (line === "") {
-      continue;
-    }
-    let nowCol = 0;
-    for (const map of line.split(",").map((c: string) => vlqDecode(c))) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [colInc, _, sRowInc, sColInc] = map;
-      nowCol += colInc;
-      if (i === row && nowCol >= col) {
-        return [sRow, sRow + sRowInc, sCol, sCol + sColInc];
-      }
-
-      sRow += sRowInc;
-      sCol += sColInc;
-    }
-  }
-}
-
-async function execute(
-  source: string,
-  onUpdate: (
-    pos: [number, number, number, number] | undefined,
-    tx: ccc.Transaction | undefined
-  ) => Promise<void>,
-  signer: ccc.Signer,
-  log: (level: "error" | "info", title: string, msgs: ReactNode[]) => void
-) {
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { sourceMap: true },
-  });
-
-  const exports = {};
-  const require = (path: string) => {
-    const lib = {
-      "@ckb-ccc/core": cccLib,
-      "@ckb-ccc/ccc": cccLib,
-      "@ckb-ccc/playground": {
-        render: async (tx: ccc.Transaction | unknown) => {
-          if (!(tx instanceof ccc.Transaction)) {
-            return;
-          }
-          const stack = new Error().stack;
-          if (!stack) {
-            return;
-          }
-          const match = stack
-            .split("\n")[2]
-            ?.match("<anonymous>:([0-9]*):([0-9]*)\\)");
-          if (!match) {
-            return;
-          }
-          try {
-            await onUpdate(
-              findSourcePos(
-                compiled.sourceMapText,
-                Number(match[1]) - 4,
-                Number(match[2]) - 2
-              ),
-              tx
-            );
-          } catch (err) {
-            if (err !== "ABORTED") {
-              throw err;
-            }
-          }
-        },
-        signer,
-        client: signer.client,
-      },
-    }[path];
-
-    if (!lib) {
-      return;
-    }
-
-    return lib;
-  };
-
-  try {
-    await Function(
-      "exports",
-      "require",
-      "console",
-      `return (async () => {\n${compiled.outputText}\n})();`
-    )(exports, require, {
-      log: (...msgs: unknown[]) =>
-        log(
-          "info",
-          "",
-          msgs.map((m) =>
-            JSON.stringify(m, (_, value) => {
-              if (typeof value === "bigint") {
-                return value.toString();
-              }
-              return value;
-            })
-          )
-        ),
-      error: (...msgs: unknown[]) =>
-        log(
-          "error",
-          "",
-          msgs.map((m) =>
-            JSON.stringify(m, (_, value) => {
-              if (typeof value === "bigint") {
-                return value.toString();
-              }
-              return value;
-            })
-          )
-        ),
-    });
-  } finally {
-    await onUpdate(undefined, undefined);
-  }
-  return;
-}
+import { execute } from "./execute";
+import { Editor } from "./components/Editor";
 
 export default function Home() {
   const { openSigner, openAction, signer, messages, sendMessage } = useApp();
-  const { setClient } = ccc.useCcc();
+  const { setClient, client } = ccc.useCcc();
 
-  const [editor, setEditor] = useState<
-    editor.IStandaloneCodeEditor | undefined
-  >(undefined);
-  const decorationRef = useRef<editor.IEditorDecorationsCollection | undefined>(
-    undefined
-  );
-
+  const [isLoading, setIsLoading] = useState(false);
   const [source, setSource] = useState(DEFAULT_TRANSFER);
   const [isRunning, setIsRunning] = useState(false);
   const [next, setNext] = useState<((abort?: boolean) => void) | undefined>(
     undefined
   );
 
-  const [scripts, setScripts] = useState<
-    Map<string, { script: ccc.Script; color: string }>
-  >(new Map());
   const [tx, setTx] = useState<ccc.Transaction | undefined>(undefined);
   const tabRef = useRef<HTMLDivElement | null>(null);
 
   const [tab, setTab] = useState("Transaction");
-  const [isTestnet, setIsTestnet] = useState(true);
   const [readMsgCount, setReadMsgCount] = useState(0);
+  const [highlight, setHighlight] = useState<number[] | undefined>(undefined);
 
-  const highlight = useCallback(
-    (pos: number[] | undefined) => {
-      if (!editor) {
-        return false;
-      }
-
-      if (!pos) {
-        decorationRef.current?.clear();
-        decorationRef.current = undefined;
-
-        return false;
-      }
-      const decorations = [
-        {
-          range: {
-            startLineNumber: pos[0] + 1,
-            endLineNumber: pos[1] + 1,
-            startColumn: 0,
-            endColumn: 0,
-          },
-          options: {
-            isWholeLine: true,
-            className: "bg-fuchsia-950",
-          },
-        },
-        {
-          range: {
-            startLineNumber: pos[0] + 1,
-            endLineNumber: pos[1] + 1,
-            startColumn: pos[2] + 1,
-            endColumn: pos[3] + 1,
-          },
-          options: {
-            className: "bg-fuchsia-900",
-          },
-        },
-      ];
-
-      if (decorationRef.current) {
-        decorationRef.current.set(decorations);
-      } else {
-        decorationRef.current = editor.createDecorationsCollection(decorations);
-      }
-
-      return true;
-    },
-    [editor]
-  );
+  const [isTestnet, setIsTestnet] = useState(true);
+  useEffect(() => {
+    setIsTestnet(client.addressPrefix !== "ckb");
+  }, [client]);
+  useEffect(() => {
+    setClient(
+      isTestnet ? new ccc.ClientPublicTestnet() : new ccc.ClientPublicMainnet()
+    );
+  }, [isTestnet, setClient]);
 
   const runCode = useCallback(
     async (autoPlay: boolean) => {
@@ -257,25 +67,25 @@ export default function Home() {
               setTx(ccc.Transaction.from({ ...tx }));
             }
 
-            if (highlight(pos)) {
-              return new Promise<void>((resolve, reject) => {
-                const next = (abort?: boolean) => {
-                  setNext(undefined);
-
-                  if (abort) {
-                    reject("ABORTED");
-                  } else {
-                    resolve();
-                  }
-                };
-                setNext(() => next);
-                if (autoPlay) {
-                  setTimeout(next, 500);
-                }
-              });
-            } else {
+            setHighlight(pos);
+            if (!pos) {
               return Promise.resolve();
             }
+            return new Promise<void>((resolve, reject) => {
+              const next = (abort?: boolean) => {
+                setNext(undefined);
+
+                if (abort) {
+                  reject("ABORTED");
+                } else {
+                  resolve();
+                }
+              };
+              setNext(() => next);
+              if (autoPlay) {
+                setTimeout(next, 500);
+              }
+            });
           },
           signer,
           sendMessage
@@ -284,50 +94,8 @@ export default function Home() {
         setIsRunning(false);
       }
     },
-    [source, signer, highlight, sendMessage]
+    [source, signer, sendMessage]
   );
-
-  useEffect(() => {
-    setScripts(new Map());
-    [tx?.inputs.map((i) => i.cellOutput) ?? [], tx?.outputs ?? []]
-      .flat()
-      .map((o) => {
-        if (!o) {
-          return;
-        }
-
-        return [o.lock, o.type];
-      })
-      .flat()
-      .map((script) => {
-        if (!script) {
-          return;
-        }
-
-        setScripts((scripts) => {
-          const hash = script.hash();
-          if (scripts.has(hash)) {
-            return scripts;
-          }
-
-          const color = `hsl(${(
-            ccc.numFrom(hash) % ccc.numFrom(360)
-          ).toString()} 65% 45%)`;
-
-          return new Map([
-            ...Array.from(scripts.entries()),
-            [hash, { script, color }],
-          ]);
-        });
-      });
-  }, [tx]);
-
-  useEffect(() => {
-    const source = window.localStorage.getItem("playgroundSourceCode");
-    if (source) {
-      setSource(source);
-    }
-  }, []);
 
   useEffect(() => {
     if (next) {
@@ -339,24 +107,23 @@ export default function Home() {
   }, [source]);
 
   useEffect(() => {
-    if (!editor) {
-      return;
-    }
-
     const searchParams = new URLSearchParams(window.location.search);
     const src = searchParams.get("src");
+
     if (src == null) {
+      const source = window.localStorage.getItem("playgroundSourceCode");
+      if (source) {
+        setSource(source);
+      }
       return;
     }
 
-    axios.get(src).then(({ data }) => setSource(data));
-  }, [editor]);
-
-  useEffect(() => {
-    setClient(
-      isTestnet ? new ccc.ClientPublicTestnet() : new ccc.ClientPublicMainnet()
-    );
-  }, [isTestnet, setClient]);
+    setIsLoading(true);
+    axios.get(src).then(({ data }) => {
+      setSource(data);
+      setIsLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     if (tab === "Console") {
@@ -381,48 +148,10 @@ export default function Home() {
         }`}
       >
         <Editor
-          className="h-[60vh] lg:h-auto w-full"
-          theme="vs-dark"
-          defaultLanguage="typescript"
-          defaultPath="/index.ts"
-          options={{
-            padding: { top: 20 },
-            minimap: { enabled: false },
-            scrollBeyondLastLine: false,
-          }}
           value={source}
           onChange={(v) => setSource(v ?? "")}
-          onMount={(editor, monaco) => {
-            setEditor(editor);
-            monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-              ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
-              module: monaco.languages.typescript.ModuleKind.ESNext,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              moduleResolution: 99 as any, // NodeNext
-              noImplicitAny: true,
-              strictNullChecks: true,
-            });
-
-            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(
-              {
-                diagnosticCodesToIgnore: [
-                  // top-level return
-                  1108,
-                ],
-              }
-            );
-
-            CCCSource.keys().forEach((key: string) => {
-              monaco.languages.typescript.typescriptDefaults.addExtraLib(
-                CCCSource(key).default,
-                "file:///" + key.replace(/\.\/[^\/]*\//, "")
-              );
-            });
-            monaco.languages.typescript.typescriptDefaults.addExtraLib(
-              "import { ccc } from '@ckb-ccc/core'; export function render(tx: ccc.Transaction): Promise<void>; export const signer: ccc.Signer; export const client: ccc.Client;",
-              "file:///node_modules/@ckb-ccc/playground/index.d.ts"
-            );
-          }}
+          isLoading={isLoading}
+          highlight={highlight}
         />
         <div className="flex overflow-x-auto bg-gray-800 shrink-0">
           <Button onClick={() => setIsTestnet(!isTestnet)}>
@@ -463,23 +192,10 @@ export default function Home() {
       <div className="flex flex-col basis-1/2 grow shrink-0 overflow-hidden">
         {
           {
-            Transaction: (
-              <Transaction
-                tx={tx}
-                scripts={scripts}
-                onRun={() => runCode(false)}
-              />
-            ),
-            Scripts: <Scripts scripts={scripts} />,
+            Transaction: <Transaction tx={tx} onRun={() => runCode(true)} />,
+            Scripts: <Scripts tx={tx} />,
             Console: <Console />,
-            Print: (
-              <Transaction
-                tx={tx}
-                scripts={scripts}
-                disableScroll
-                innerRef={tabRef}
-              />
-            ),
+            Print: <Transaction tx={tx} disableScroll innerRef={tabRef} />,
             About: <About className="p-4 grow" />,
           }[tab]
         }
